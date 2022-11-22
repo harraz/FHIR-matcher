@@ -1,0 +1,6 @@
+spark-warehouse/
+delta
+csv
+*.log
+__pycache__
+imgs
