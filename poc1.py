@@ -1,0 +1,351 @@
+import json
+import logging
+import os
+from string2img import *
+
+from fhir.resources.bundle import Bundle
+from fhir.resources.patient import Patient
+from fhir.resources.condition import Condition
+# from fhir.resources.observation import Observation
+# from fhir.resources.medicationrequest import MedicationRequest
+# from fhir.resources.procedure import Procedure
+# from fhir.resources.encounter import Encounter
+# from fhir.resources.claim import Claim
+# from fhir.resources.immunization import Immunization
+
+import boto3
+
+import pyspark
+from delta import *
+
+builder = pyspark.sql.SparkSession.builder.appName("p360POC") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.hadoop.hive.metastore.warehouse.dir", "/work/delta") \
+    .config("spark.driver.memory", "15g") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+    .config("spark.jars.packages", 
+                "io.delta:delta-core_2.12:1.1.0,"
+                "org.apache.hadoop:hadoop-aws:3.2.2,"
+                "com.amazonaws:aws-java-sdk-bundle:1.12.180") \
+    .config('spark.executor.instances', 4) 
+    # .config("spark.executor.memory", "8g") \
+    # .config("spark.sql.warehouse.dir", "/work/delta") \
+
+spark = configure_spark_with_delta_pip(builder).getOrCreate()
+print(spark.sparkContext)
+
+# This is mandate config on spark session to use AWS S3
+# spark._jsc.hadoopConfiguration().set("com.amazonaws.services.s3.enableV4", "true")
+# spark._jsc.hadoopConfiguration().set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+# spark._jsc.hadoopConfiguration().set("fs.s3a.aws.credentials.provider","com.amazonaws.auth.InstanceProfileCredentialsProvider,com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+# spark._jsc.hadoopConfiguration().set("fs.AbstractFileSystem.s3a.impl", "org.apache.hadoop.fs.s3a.S3A")
+# spark.sparkContext.setLogLevel("DEBUG")
+
+sc =  spark.sparkContext
+# sc.addPyFile("")
+
+# s3_client = boto3.client('s3')
+# response = s3_client.upload_file("/work/delta/p360_pov.db/patients/", 'synthea-output', "output/delta/patients")
+
+# exit(0)
+
+logging.basicConfig(filename='unixmen.log', level=logging.DEBUG)
+
+s3 = boto3.resource('s3')
+
+content_object = s3.Object('synthea-output', 'Bundles/Ana_María762_Teresa94_Arevalo970_a9855237-bdde-707e-cf2e-6de590b79d1d.json')
+file_content = content_object.get()['Body'].read().decode('utf-8')
+
+# from IPython.display import JSON
+schema = json.loads(file_content)
+# schema = json.load(open('s3://synthea-output/AWSHealthLakeData/practitionerInformation1661305219780.json'))
+# JSON(schema)
+# print(schema)
+
+def ingestBundle(schema):
+    
+    """
+    This functions extracts all the resources in a given schema and passed back a list of resources found.
+    :return: list
+    :input: a schema of type json
+    """
+
+    oneBundle = Bundle.parse_obj(schema)
+
+    # Resources
+
+    resources = []
+    if oneBundle.entry is not None:
+        for entry in oneBundle.entry:
+            resources.append(entry.resource)
+    
+    return resources
+
+resources = ingestBundle(schema)
+
+    # print(resources[0])
+onePatient = Patient.parse_obj(resources[0])
+
+onePatient.name[0]
+
+# Patient demographics
+onePatientID = onePatient.id
+
+
+# define resources dataframes
+data = []
+from pyspark.sql.types import *
+
+# Creating an empty RDD to make a DataFrame
+# with no data
+emp_RDD = spark.sparkContext.emptyRDD()
+
+patientSchema = StructType([
+    StructField('PatientUID', StringType(), True),
+    StructField('PatientRecordNumber', StringType(), True),
+    StructField('NameFamily', StringType(), True),
+    StructField('NameGiven', StringType(), True),
+    StructField('DoB', DateType(), True),
+    StructField('Gender', StringType(), True),
+    StructField('CoreEthnicity', StringType(), True),
+    StructField('CoreEthnicity2', StringType(), True),
+    StructField('isDead', StringType(), True),
+    StructField('addressline1', StringType(), True),
+    StructField('city', StringType(), True),
+    StructField('state', StringType(), True),
+    StructField('postalCode', StringType(), True),
+    StructField('country', StringType(), True)
+  ])
+
+encounterSchema = StructType([
+    StructField('PatientUID', StringType(), True),
+    StructField('encounterID', StringType(), True),
+    StructField('status', StringType(), True),
+    StructField('classCode', StringType(), True),
+    StructField('classText', StringType(), True),
+    StructField('periodStart', DateType(), True),
+    StructField('periodEnd', DateType(), True),
+    StructField('reasonCode', StringType(), True),
+    StructField('reasonText', StringType(), True),
+    StructField('serviceProviderText', StringType(), True)
+])
+
+conditionSchema = StructType([
+    StructField('PatientUID', StringType(), True),
+    StructField('conditionID', StringType(), True),
+    StructField('encounterID', StringType(), True),
+    StructField('clinicalStatus', StringType(), True),
+    StructField('verificationStatus', StringType(), True),
+    StructField('conditionCode', StringType(), True),
+    StructField('conditionText', StringType(), True),
+    StructField('onsetDateTime', DateType(), True),
+    StructField('recordedDate', DateType(), True)
+])
+
+# Creating an empty patient DataFrame
+patient_df = spark.createDataFrame(data=emp_RDD,
+                                   schema=patientSchema)
+# Creating an empty encounter DataFrame
+encounter_df = spark.createDataFrame(data=emp_RDD,
+                                   schema=encounterSchema)
+# Creating an empty encounter DataFrame
+condition_df = spark.createDataFrame(data=emp_RDD,
+                                   schema=conditionSchema)
+
+def list_s3_files_using_resource():
+    """
+    This functions list files from s3 bucket using s3 resource object.
+    :return: list
+    """
+    
+    fileList= []
+    s3_resource = boto3.resource("s3")
+    s3_bucket = s3_resource.Bucket("synthea-output")
+    files = s3_bucket.objects.all()
+    for file in files:
+        if (file.key.startswith('Bundles/') and file.key.endswith('.json')):
+            fileList.append(file.key)
+    return fileList
+
+fileList = list_s3_files_using_resource()
+
+s3 = boto3.resource('s3')
+i=0
+for fileName in fileList:
+
+    # content_object = s3.Object('synthea-output', fileName)
+    # file_content = content_object.get()['Body'].read().decode('utf-8')
+
+    schema = json.loads(file_content)
+
+    resources = ingestBundle(schema)
+
+    onePatient = Patient.parse_obj(resources[0])
+    # onePatientID = onePatient.id
+    # the bundles file seem to have an issue where all of them have the same patient ID, 
+    # therefore the above two lines will nto work and I will use the file name which seems to have the id
+    onePatientID=file_name = os.path.basename(fileName)
+
+
+    NumberOfResourcesInBundle = len(resources)
+    print(fileName, onePatient.id, i, NumberOfResourcesInBundle)
+
+    if NumberOfResourcesInBundle > 500: 
+        continue
+    else: 
+        i+=1
+
+    if (i > 3): 
+        break
+    
+    patientData= []
+    encounterData= []
+    condtitionData = []
+
+    patient_img,encounter_img, condition_img=None,None,None
+    patient_img_lst,encounter_img_lst, condition_img_lst=[],[],[]
+
+    resEncounters=[]
+    
+    k=0
+    
+    for j in range(len(resources)):
+        
+        currentResource = resources[j]
+
+        if resources[j].__class__.__name__ == 'Patient':
+        
+            # logging.info('adding patient info')
+
+            resource_data = [onePatientID, \
+                            onePatient.identifier[1].value, \
+                            onePatient.name[0].family, \
+                            onePatient.name[0].given[0], \
+                            onePatient.birthDate, \
+                            onePatient.gender, \
+                            onePatient.extension[0].extension[1].valueString, \
+                            onePatient.extension[1].extension[1].valueString, \
+                            onePatient.deceasedBoolean, \
+                            onePatient.address[0].line[0], \
+                            onePatient.address[0].city, \
+                            onePatient.address[0].state, \
+                            onePatient.address[0].postalCode, \
+                            onePatient.address[0].country]
+            patientData.append(resource_data)
+            
+            # Adding to the patient data frame DataFrame
+            newPatient_df = spark.createDataFrame(patientData, patientSchema)
+            patient_df = patient_df.union(newPatient_df)
+
+            # im=to_image(resource_data[2:])
+            # patient_img_lst.append(im)
+            # im.close()
+        
+        if resources[j].__class__.__name__ == 'Encounter':
+
+            # logging.info('adding encounter')
+    
+            resEncounters.append(currentResource)
+    
+            reasonCode= None
+            reasonText = None
+    
+            if (currentResource.reasonCode != None):
+                reasonCode = currentResource.reasonCode[0].coding[0].code
+                reasonText = currentResource.reasonCode[0].coding[0].display
+        
+            resource_data= [onePatientID, currentResource.id, \
+                currentResource.status, \
+                currentResource.type[0].coding[0].code, \
+                currentResource.type[0].coding[0].display, \
+                currentResource.period.start, \
+                currentResource.period.end, reasonCode, reasonText, \
+                currentResource.serviceProvider.display]
+            
+            encounterData.append(resource_data)
+            # Adding to the encounter data frame DataFrame
+            newEncounter_df = spark.createDataFrame(encounterData, encounterSchema)
+            encounter_df = encounter_df.union(newEncounter_df)
+
+            # im=to_image(resource_data)
+            # encounter_img_lst.append(resource_data)
+
+            # im=to_image(resource_data[2:])
+            # encounter_img_lst.append(im)
+            # encounter_img_lst.append(resource_data[:6])
+            # print("adding encounters", j)
+
+            # encounter_img = to_image(resource_data)
+            
+        if resources[j].__class__.__name__ == 'Condition':
+            
+            logging.info('adding condition')
+            
+            k+=1
+            # if k> 500: continue
+
+            resource_data = [onePatientID, \
+                            currentResource.id, \
+                            currentResource.encounter.reference, \
+                            currentResource.clinicalStatus.coding[0].code, \
+                            currentResource.verificationStatus.coding[0].code, \
+                            currentResource.code.coding[0].code, \
+                            currentResource.code.coding[0].display, \
+                            (currentResource.onsetDateTime).date(), \
+                            (currentResource.recordedDate).date()]
+            condtitionData.append(resource_data)
+
+            # Adding to the condition DataFrame
+            newCondition_df = spark.createDataFrame(condtitionData, conditionSchema)
+            condition_df = condition_df.union(newCondition_df)
+
+            # condition_img = to_image(resource_data)
+
+            # print("adding conditions", k)
+            # condition_df.show()
+   
+    encounter_df.select("PatientUID","classCode" ).distinct().sort(['classCode']).show()
+    print(encounter_df.select('classCode').distinct().sort(['classCode']).rdd.map(lambda x : x[0]).collect())
+
+    # pil_grid((patient_img_lst), 4).save('./imgs/' + onePatientID +  'patient.png')
+    # im=to_image(encounter_img_lst)
+    # im.save('./imgs/' + onePatientID +'_testing.png')
+    # pil_grid((encounter_img_lst)).save('./imgs/' + onePatientID + 'encounters.png')
+
+    # pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/' + onePatientID + '.png')
+
+    # patient_img.close()
+    # encounter_img.close()
+    # condition_img.close()
+
+# patient_df.show()
+# encounter_df.show()
+# condition_df.show()
+
+
+# spark.sql("create database if not exists p360_pov")
+# spark.sql("use p360_pov")
+
+# .option("path", "/root/work/delta") \
+
+# patient_df.write \
+#     .format("delta") \
+#         .option("overwriteSchema", "true") \
+#     .mode("overwrite") \
+#     .saveAsTable("patients")
+
+# encounter_df.write \
+#     .format("delta") \
+#         .option("overwriteSchema", "true") \
+#     .mode("overwrite") \
+#     .saveAsTable("encounters")
+
+# condition_df.write \
+#     .format("delta") \
+#     .option("overwriteSchema", "true") \
+#     .mode("overwrite") \
+#     .saveAsTable("conditions")
+
+# patient_df.write.option("header",True).option("delimiter","|").csv("/work/csv/patient")
+# encounter_df.write.option("header",True).option("delimiter","|").csv("/work/csv/encounter")
+# condition_df.write.option("header",True).option("delimiter","|").csv("/work/csv/condition")
