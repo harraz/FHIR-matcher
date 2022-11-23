@@ -6,7 +6,7 @@ def to_image(stringlist):
 
     s = "\n".join(map(str, stringlist))
 
-    img = Image.new(size=(1700, 1700), mode='L')
+    img = Image.new(size=(200, 400), mode='L')
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
 
