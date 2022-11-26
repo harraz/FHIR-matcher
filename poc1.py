@@ -15,8 +15,8 @@ from fhir.resources.patient import Patient
 # from fhir.resources.immunization import Immunization
 
 import pyspark
-from pyspark.sql.functions import col
 from delta import *
+from pyspark.sql.types import *
 
 builder = pyspark.sql.SparkSession.builder.appName("p360POC") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
@@ -91,56 +91,14 @@ onePatient.name[0]
 # Patient demographics
 onePatientID = onePatient.id
 
-
 # define resources dataframes
 data = []
-from pyspark.sql.types import *
 
 # Creating an empty RDD to make a DataFrame
 # with no data
 emp_RDD = spark.sparkContext.emptyRDD()
 
-patientSchema = StructType([
-    StructField('PatientUID', StringType(), True),
-    StructField('PatientRecordNumber', StringType(), True),
-    StructField('NameFamily', StringType(), True),
-    StructField('NameGiven', StringType(), True),
-    StructField('DoB', DateType(), True),
-    StructField('Gender', StringType(), True),
-    StructField('CoreEthnicity', StringType(), True),
-    StructField('CoreEthnicity2', StringType(), True),
-    StructField('isDead', StringType(), True),
-    StructField('addressline1', StringType(), True),
-    StructField('city', StringType(), True),
-    StructField('state', StringType(), True),
-    StructField('postalCode', StringType(), True),
-    StructField('country', StringType(), True)
-  ])
-
-encounterSchema = StructType([
-    StructField('PatientUID', StringType(), True),
-    StructField('encounterID', StringType(), True),
-    StructField('status', StringType(), True),
-    StructField('classCode', StringType(), True),
-    StructField('classText', StringType(), True),
-    StructField('periodStart', DateType(), True),
-    StructField('periodEnd', DateType(), True),
-    StructField('reasonCode', StringType(), True),
-    StructField('reasonText', StringType(), True),
-    StructField('serviceProviderText', StringType(), True)
-])
-
-conditionSchema = StructType([
-    StructField('PatientUID', StringType(), True),
-    StructField('conditionID', StringType(), True),
-    StructField('encounterID', StringType(), True),
-    StructField('clinicalStatus', StringType(), True),
-    StructField('verificationStatus', StringType(), True),
-    StructField('conditionCode', StringType(), True),
-    StructField('conditionText', StringType(), True),
-    StructField('onsetDateTime', DateType(), True),
-    StructField('recordedDate', DateType(), True)
-])
+patientSchema,encounterSchema,conditionSchema= makeSchemas()
 
 # Creating an empty patient DataFrame
 patient_df = spark.createDataFrame(data=emp_RDD, schema=patientSchema)
@@ -172,7 +130,7 @@ for fileName in fileList:
         continue
 
     i+=1
-    if (i > 1): 
+    if (i > 9999): 
         break
     
     patientData= []
@@ -181,10 +139,6 @@ for fileName in fileList:
 
     patient_img,encounter_img, condition_img=None,None,None
     patient_lst,encounter_lst, condition_lst=[],[],[]
-
-    resEncounters=[]
-    
-    k=0
     
     for j in range(len(resources)):
         
@@ -217,9 +171,7 @@ for fileName in fileList:
         if resources[j].__class__.__name__ == 'Encounter':
 
             # logging.info('adding encounter')
-    
-            resEncounters.append(currentResource)
-    
+        
             reasonCode= None
             reasonText = None
     
@@ -242,10 +194,7 @@ for fileName in fileList:
             
         if resources[j].__class__.__name__ == 'Condition':
             
-            logging.info('adding condition')
-            
-            k+=1
-            # if k> 500: continue
+            # logging.info('adding condition')
 
             resource_data = [onePatientID, \
                             currentResource.id, \
@@ -261,39 +210,20 @@ for fileName in fileList:
             # Adding to the condition DataFrame
             newCondition_df = spark.createDataFrame(condtitionData, conditionSchema)
             condition_df = condition_df.union(newCondition_df)
-
-    # patient_lst = patient_df.select('NameFamily', 'NameGiven','Gender', 'city','state','postalCode') \
-    #     .filter(patient_df.PatientUID == onePatientID) \
-    #     .rdd.flatMap(lambda x : x[:]) \
-    #     .collect()
     
-    patient_lst = df2list(patient_df.select('PatientUID','NameFamily', \
+    patient_lst = df2list(newPatient_df.select('PatientUID','NameFamily', \
         'NameGiven','Gender', 'city','state','postalCode'), onePatientID)
 
     patient_img=to_image(patient_lst)
-    patient_img.save('./imgs/patient_test' + onePatientID + '.png')
+    # patient_img.save('./imgs/patient_test' + onePatientID + '.png')
 
-    # encounter_lst = encounter_df.select('classCode') \
-    #     .filter(encounter_df.PatientUID == onePatientID) \
-    #     .distinct().sort(['classCode']) \
-    #     .rdd.map(lambda x : x[0]) \
-    #     .collect()
-
-    encounter_lst = df2list(encounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID, 2)
-
+    encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID,3 )
     encounter_img=to_image(encounter_lst)
-    encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
+    # encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
 
-    # condition_lst = condition_df.select('conditionCode') \
-    # .filter(condition_df.PatientUID == onePatientID) \
-    # .distinct().sort(['conditionCode']) \
-    # .rdd.map(lambda x : x[0]) \
-    # .collect()
-
-    condition_lst = df2list(condition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID, 2)
-
+    condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID, 3)
     condition_img=to_image(condition_lst)
-    condition_img.save('./imgs/condition_test' + onePatientID + '.png')
+    # condition_img.save('./imgs/condition_test' + onePatientID + '.png')
 
     pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/grid3_' + onePatientID + '.png')
 
