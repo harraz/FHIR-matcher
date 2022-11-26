@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from string2img import *
+from libfunctions import *
 
 from fhir.resources.bundle import Bundle
 from fhir.resources.patient import Patient
@@ -12,8 +13,6 @@ from fhir.resources.patient import Patient
 # from fhir.resources.encounter import Encounter
 # from fhir.resources.claim import Claim
 # from fhir.resources.immunization import Immunization
-
-import boto3
 
 import pyspark
 from pyspark.sql.functions import col
@@ -150,22 +149,7 @@ encounter_df = spark.createDataFrame(data=emp_RDD, schema=encounterSchema)
 # Creating an empty encounter DataFrame
 condition_df = spark.createDataFrame(data=emp_RDD, schema=conditionSchema)
 
-def list_s3_files_using_resource():
-    """
-    This functions list files from s3 bucket using s3 resource object.
-    :return: list
-    """
-    
-    fileList= []
-    s3_resource = boto3.resource("s3")
-    s3_bucket = s3_resource.Bucket("synthea-output")
-    files = s3_bucket.objects.all()
-    for file in files:
-        if (file.key.startswith('Bundles/') and file.key.endswith('.json')):
-            fileList.append(file.key)
-    return fileList
-
-fileList = list_s3_files_using_resource()
+fileList = list_s3_files_using_resource('synthea-output', 'Bundles')
 
 s3 = boto3.resource('s3')
 i=0
@@ -184,11 +168,11 @@ for fileName in fileList:
     NumberOfResourcesInBundle = len(resources)
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
-    if NumberOfResourcesInBundle > 1000:
+    if NumberOfResourcesInBundle > 99999:
         continue
 
     i+=1
-    if (i > 3): 
+    if (i > 1): 
         break
     
     patientData= []
@@ -229,10 +213,6 @@ for fileName in fileList:
             # Adding to the patient data frame DataFrame
             newPatient_df = spark.createDataFrame(patientData, patientSchema)
             patient_df = patient_df.union(newPatient_df)
-
-            # im=to_image(resource_data[2:])
-            # patient_img_lst.append(im)
-            # im.close()
         
         if resources[j].__class__.__name__ == 'Encounter':
 
@@ -259,16 +239,6 @@ for fileName in fileList:
             # Adding to the encounter data frame DataFrame
             newEncounter_df = spark.createDataFrame(encounterData, encounterSchema)
             encounter_df = encounter_df.union(newEncounter_df)
-
-            # im=to_image(resource_data)
-            # encounter_img_lst.append(resource_data)
-
-            # im=to_image(resource_data[2:])
-            # encounter_img_lst.append(im)
-            # encounter_img_lst.append(resource_data[:6])
-            # print("adding encounters", j)
-
-            # encounter_img = to_image(resource_data)
             
         if resources[j].__class__.__name__ == 'Condition':
             
@@ -292,44 +262,48 @@ for fileName in fileList:
             newCondition_df = spark.createDataFrame(condtitionData, conditionSchema)
             condition_df = condition_df.union(newCondition_df)
 
-            # print("adding conditions", k)
-            # condition_df.show()
-
-    patient_lst = patient_df.select('NameFamily', 'NameGiven','Gender', 'city','state','postalCode') \
-        .filter(patient_df.PatientUID == onePatientID) \
-        .rdd.flatMap(lambda x : x[:]) \
-        .collect()
+    # patient_lst = patient_df.select('NameFamily', 'NameGiven','Gender', 'city','state','postalCode') \
+    #     .filter(patient_df.PatientUID == onePatientID) \
+    #     .rdd.flatMap(lambda x : x[:]) \
+    #     .collect()
+    
+    patient_lst = df2list(patient_df.select('PatientUID','NameFamily', \
+        'NameGiven','Gender', 'city','state','postalCode'), onePatientID)
 
     patient_img=to_image(patient_lst)
-    # patient_img.save('./imgs/patient_' + onePatientID + '.png')
+    patient_img.save('./imgs/patient_test' + onePatientID + '.png')
 
-    encounter_lst = encounter_df.select('classCode') \
-        .filter(encounter_df.PatientUID == onePatientID) \
-        .distinct().sort(['classCode']) \
-        .rdd.map(lambda x : x[0]) \
-        .collect()
+    # encounter_lst = encounter_df.select('classCode') \
+    #     .filter(encounter_df.PatientUID == onePatientID) \
+    #     .distinct().sort(['classCode']) \
+    #     .rdd.map(lambda x : x[0]) \
+    #     .collect()
+
+    encounter_lst = df2list(encounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID, 2)
 
     encounter_img=to_image(encounter_lst)
-    # encounter_img.save('./imgs/encounter_' + onePatientID + '.png')
+    encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
 
-    condition_lst = condition_df.select('conditionCode') \
-    .filter(condition_df.PatientUID == onePatientID) \
-    .distinct().sort(['conditionCode']) \
-    .rdd.map(lambda x : x[0]) \
-    .collect()
+    # condition_lst = condition_df.select('conditionCode') \
+    # .filter(condition_df.PatientUID == onePatientID) \
+    # .distinct().sort(['conditionCode']) \
+    # .rdd.map(lambda x : x[0]) \
+    # .collect()
+
+    condition_lst = df2list(condition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID, 2)
 
     condition_img=to_image(condition_lst)
-    # condition_img.save('./imgs/condition_' + onePatientID + '.png')
+    condition_img.save('./imgs/condition_test' + onePatientID + '.png')
 
-    pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/' + onePatientID + '.png')
+    pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/grid3_' + onePatientID + '.png')
 
     patient_img.close()
     encounter_img.close()
     condition_img.close()
 
-patient_df.show()
-encounter_df.show()
-condition_df.show()
+patient_df.show(truncate=True)
+encounter_df.show(truncate=True)
+condition_df.show(truncate=True)
 
 
 # spark.sql("create database if not exists p360_pov")

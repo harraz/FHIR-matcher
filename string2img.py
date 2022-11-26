@@ -1,12 +1,12 @@
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageChops
 
 def to_image(stringlist):
 
     s = "\n".join(map(str, stringlist))
 
-    img = Image.new(size=(200, 400), mode='L')
+    img = Image.new(size=(200, 200), mode='L')
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
 
@@ -28,15 +28,35 @@ def pil_grid(images, max_horiz=np.iinfo(int).max):
         im_grid.paste(im, (h_sizes[i % n_horiz], v_sizes[i // n_horiz]))
     return im_grid
 
+def img_diff(im1_path, im2_path):
+
+    im1 = Image.open(im1_path)
+    im2 = Image.open(im2_path)
+
+    diff = ImageChops.difference(im2, im1)
+    diff.show()
+    diff_arr = np.asarray(np.array(diff), dtype=np.float32)
+
+    im_size = (diff_arr.size)
+
+    # abs_diff= np.abs(diff_arr.max()-diff_arr.min())
+    diff_ratio= (diff_arr.sum()/im_size) * 100.0
+
+    return diff_ratio
+
 def main():
 
-    img= to_image(['hello','there','its','me'])
-    img.save('./imgs/test.png')
 
-    img2= to_image(['I','love','to see this','working'])
-    img2.save('./imgs/test1.png')
+    diff=img_diff('imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png', 'imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png')
+    print(diff)
 
-    pil_grid([img,img2],2).save('./imgs/test2.png')
+    # img= to_image(['hello','there','its','me'])
+    # img.save('./imgs/test.png')
+
+    # img2= to_image(['I','love','to see this','working'])
+    # img2.save('./imgs/test1.png')
+
+    # pil_grid([img,img2],2).save('./imgs/test2.png')
 
 if __name__ == "__main__":
     main()
