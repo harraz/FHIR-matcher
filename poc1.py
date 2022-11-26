@@ -16,19 +16,18 @@ from fhir.resources.patient import Patient
 
 import pyspark
 from delta import *
-from pyspark.sql.types import *
 
 builder = pyspark.sql.SparkSession.builder.appName("p360POC") \
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
     .config("spark.hadoop.hive.metastore.warehouse.dir", "/work/delta") \
-    .config("spark.driver.memory", "15g") \
+    .config("spark.driver.memory", "8g") \
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .config("spark.jars.packages", 
                 "io.delta:delta-core_2.12:1.1.0,"
                 "org.apache.hadoop:hadoop-aws:3.2.2,"
                 "com.amazonaws:aws-java-sdk-bundle:1.12.180") \
-    .config('spark.executor.instances', 4) 
-    # .config("spark.executor.memory", "8g") \
+    .config('spark.executor.instances', 8) \
+    .config("spark.executor.memory", "8g")
     # .config("spark.sql.warehouse.dir", "/work/delta") \
 
 spark = configure_spark_with_delta_pip(builder).getOrCreate()
@@ -126,7 +125,7 @@ for fileName in fileList:
     NumberOfResourcesInBundle = len(resources)
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
-    if NumberOfResourcesInBundle > 99999:
+    if NumberOfResourcesInBundle > 500:
         continue
 
     i+=1
