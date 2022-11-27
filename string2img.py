@@ -2,15 +2,19 @@
 import numpy as np
 from PIL import Image, ImageDraw, ImageChops
 
-def to_image(stringlist):
+def to_image(stringlist, maskImage):
+
+    imsize = (200, 200)
 
     s = "\n".join(map(str, stringlist))
 
-    img = Image.new(size=(200, 200), mode='L')
+    mask = Image.open('./' + maskImage).convert(mode='RGBA')
+    mask = mask.resize(size=imsize)
+
+    img = Image.new(size=imsize, mode='RGBA')
+    img = Image.blend(mask, img,alpha=0.5)
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
-
-    img.show()
 
     return img
 
@@ -34,7 +38,7 @@ def img_diff(im1_path, im2_path):
     im2 = Image.open(im2_path)
 
     diff = ImageChops.difference(im2, im1)
-    diff.show()
+    # diff.show()
     diff_arr = np.asarray(np.array(diff), dtype=np.float32)
 
     im_size = (diff_arr.size)
@@ -47,14 +51,14 @@ def img_diff(im1_path, im2_path):
 def main():
 
 
-    diff=img_diff('imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png', 'imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png')
-    print(diff)
+    # diff=img_diff('imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png', 'imgs/grid_8206939b-7317-e2f9-bfc8-34bf910f4eba.png')
+    # print(diff)
 
-    # img= to_image(['hello','there','its','me'])
-    # img.save('./imgs/test.png')
+    img= to_image(['hello','there','its','me'],'encounter_mask.png')
+    img.save('./imgs/test.png')
 
-    # img2= to_image(['I','love','to see this','working'])
-    # img2.save('./imgs/test1.png')
+    img2= to_image(['I','love','to see this','working'], 'condition_mask.png')
+    img2.save('./imgs/test1.png')
 
     # pil_grid([img,img2],2).save('./imgs/test2.png')
 

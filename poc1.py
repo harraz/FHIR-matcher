@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from string2img import *
 from libfunctions import *
 
@@ -106,13 +105,16 @@ encounter_df = spark.createDataFrame(data=emp_RDD, schema=encounterSchema)
 # Creating an empty encounter DataFrame
 condition_df = spark.createDataFrame(data=emp_RDD, schema=conditionSchema)
 
-fileList = list_s3_files_using_resource('synthea-output', 'Bundles')
+s3BucketName = 'synthea-output'
+s3FolderName = 'Bundles' # 'dupes'
+
+fileList = list_s3_files_using_resource(s3BucketName, s3FolderName)
 
 s3 = boto3.resource('s3')
 i=0
 for fileName in fileList:
 
-    content_object = s3.Object('synthea-output', fileName)
+    content_object = s3.Object(s3BucketName, fileName)
     file_content = content_object.get()['Body'].read().decode('utf-8')
 
     schema = json.loads(file_content)
@@ -125,12 +127,12 @@ for fileName in fileList:
     NumberOfResourcesInBundle = len(resources)
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
-    if NumberOfResourcesInBundle > 500:
-        continue
-
     i+=1
     if (i > 9999): 
         break
+
+    if NumberOfResourcesInBundle > 9999:
+        continue
     
     patientData= []
     encounterData= []
@@ -213,15 +215,17 @@ for fileName in fileList:
     patient_lst = df2list(newPatient_df.select('PatientUID','NameFamily', \
         'NameGiven','Gender', 'city','state','postalCode'), onePatientID)
 
-    patient_img=to_image(patient_lst)
+    patient_img=to_image(patient_lst, 'patient_mask.png')
     # patient_img.save('./imgs/patient_test' + onePatientID + '.png')
 
-    encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID,3 )
-    encounter_img=to_image(encounter_lst)
+    encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID, 3)
+    # encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode'), onePatientID, 1)
+    encounter_img=to_image(encounter_lst,  'encounter_mask.png')
     # encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
 
     condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID, 3)
-    condition_img=to_image(condition_lst)
+    # condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode'), onePatientID, 2)
+    condition_img=to_image(condition_lst, 'condition_mask.png')
     # condition_img.save('./imgs/condition_test' + onePatientID + '.png')
 
     pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/grid3_' + onePatientID + '.png')
