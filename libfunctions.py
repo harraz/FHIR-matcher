@@ -1,5 +1,6 @@
 import boto3
 from pyspark.sql.types import StructType, StructField, StringType, DateType
+import matplotlib.pyplot as plt
 
 def list_s3_files_using_resource(bucketName, folderName):
     """
@@ -75,3 +76,44 @@ def makeSchemas():
     ])
 
     return patientSchema, encounterSchema, conditionSchema
+
+# Plot utility  
+def plot_graphs(datain, string, saveto='plt'):
+    from matplotlib.ticker import AutoMinorLocator, FormatStrFormatter
+
+    x=range(0,len(datain))
+    plt.plot(x, datain, marker="x")
+
+    # plt.gca().invert_xaxis()
+    # plt.gca().invert_yaxis()
+    # plt.yscale("log")
+    plt.xlabel("Matches")
+    plt.ylabel(string)
+    plt.legend(saveto)
+    
+    ax = plt.gca()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+    ax.grid(axis="x", color="green", alpha=.3, linewidth=2, linestyle=":")
+    ax.grid(axis="y", color="black", alpha=.5, linewidth=.5)
+
+    ax.set_xlim(-1, 10)
+
+    plt.savefig(saveto+'.png')
+
+    def random_strings(strlength=7):
+
+        import string
+        import random
+        
+        # initializing size of string
+        N = strlength
+        
+        # using random.choices()
+        # generating random strings
+        res = ''.join(random.choices(string.ascii_uppercase +
+                                    string.digits, k=N))
+        
+        # print result
+        print("The generated random string : " + str(res))
