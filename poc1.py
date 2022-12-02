@@ -128,10 +128,10 @@ for fileName in fileList:
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
     i+=1
-    if (i > 900): 
+    if (i > 7): 
         break
 
-    if NumberOfResourcesInBundle > 9999:
+    if NumberOfResourcesInBundle > 900:
         continue
     
     patientData= []
@@ -149,9 +149,11 @@ for fileName in fileList:
         
             # logging.info('adding patient info')
 
+            rand_str= random_strings(3)
+
             resource_data = [onePatientID, \
                             onePatient.identifier[1].value, \
-                            onePatient.name[0].family, \
+                            onePatient.name[0].family + rand_str, \
                             onePatient.name[0].given[0], \
                             onePatient.birthDate, \
                             onePatient.gender, \
