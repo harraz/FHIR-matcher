@@ -102,18 +102,18 @@ def plot_graphs(datain, string, saveto='plt'):
 
     plt.savefig(saveto+'.png')
 
-    def random_strings(strlength=7):
+def random_strings(strlength=3):
 
-        import string
-        import random
-        
-        # initializing size of string
-        N = strlength
-        
-        # using random.choices()
-        # generating random strings
-        res = ''.join(random.choices(string.ascii_uppercase +
-                                    string.digits, k=N))
-        
-        # print result
-        print("The generated random string : " + str(res))
+    import string
+    import random
+    
+    # initializing size of string
+    N = strlength
+    
+    # using random.choices()
+    # generating random strings
+    res = ''.join(random.choices(string.ascii_uppercase +
+                                string.digits, k=N))
+    
+    # print result
+    return str(res)
