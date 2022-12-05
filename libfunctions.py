@@ -78,22 +78,30 @@ def makeSchemas():
     return patientSchema, encounterSchema, conditionSchema
 
 # Plot utility  
-def plot_graphs(datain, string, saveto='plt'):
-    from matplotlib.ticker import AutoMinorLocator, FormatStrFormatter
+def plot_graphs(datain, ylabel, saveto='plt'):
+    from matplotlib.ticker import AutoMinorLocator, FixedLocator, FixedFormatter
 
-    x=range(0,len(datain))
-    plt.plot(x, datain, marker="x")
+    x=range(0,len(datain[0]))
+    plt.plot(x, datain[0], marker="x")
 
     # plt.gca().invert_xaxis()
     # plt.gca().invert_yaxis()
     # plt.yscale("log")
     plt.xlabel("Matches")
-    plt.ylabel(string)
+    plt.ylabel(ylabel)
     plt.legend(saveto)
     
     ax = plt.gca()
     ax.xaxis.set_minor_locator(AutoMinorLocator())
     ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+    ax.tick_params(axis="x", labelsize=7, labelrotation=-25, labelcolor="black")
+
+    x_locator = FixedLocator(x)
+    ax.xaxis.set_major_locator(x_locator)
+
+    x_formatter = FixedFormatter(datain[1])
+    ax.xaxis.set_major_formatter(x_formatter)
 
     ax.grid(axis="x", color="green", alpha=.3, linewidth=2, linestyle=":")
     ax.grid(axis="y", color="black", alpha=.5, linewidth=.5)

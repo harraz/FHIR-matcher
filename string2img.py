@@ -13,7 +13,7 @@ def to_image(stringlist, maskImage):
     mask = mask.resize(size=imsize)
 
     img = Image.new(size=imsize, mode='L')
-    img = Image.blend(mask, img,alpha=0.5)
+    img = Image.blend(mask, img,alpha=1)
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
 
@@ -28,7 +28,7 @@ def pil_grid(images, max_horiz=np.iinfo(int).max):
         h_sizes[h] = max(h_sizes[h], im.size[0])
         v_sizes[v] = max(v_sizes[v], im.size[1])
     h_sizes, v_sizes = np.cumsum([0] + h_sizes), np.cumsum([0] + v_sizes)
-    im_grid = Image.new('RGB', (h_sizes[-1], v_sizes[-1]), color='white')
+    im_grid = Image.new('L', (h_sizes[-1], v_sizes[-1]), color='white')
     for i, im in enumerate(images):
         im_grid.paste(im, (h_sizes[i % n_horiz], v_sizes[i // n_horiz]))
     return im_grid
@@ -36,17 +36,17 @@ def pil_grid(images, max_horiz=np.iinfo(int).max):
 def main():
 
     # pass
-    diff=difference_ratio_by_parts('./imgs/dupe_5fd4e698-b40f-19ea-2204-4e9013576661.png', './imgs/grid3_5fd4e698-b40f-19ea-2204-4e9013576661.png')
-    print(diff)
+    # diff=difference_ratio_by_parts('./imgs/dupe_5fd4e698-b40f-19ea-2204-4e9013576661.png', './imgs/grid3_5fd4e698-b40f-19ea-2204-4e9013576661.png')
+    # print(diff)
 
-    # img= to_image(['hello','there','its','me'],'encounter_mask.png')
-    # img.save('./imgs/test.png')
+    img= to_image(['hello','there','its','me'],'encounter_mask.png')
+    img.save('./imgs/test.png')
 
-    # img2= to_image(['I','love','to see this','working'], 'condition_mask.png')
-    # img2.save('./imgs/test1.png')
+    img2= to_image(['I','love','to see this','working'], 'condition_mask.png')
+    img2.save('./imgs/test1.png')
 
-    # img3=pil_grid([img,img2],2)
-    # img3.show()
+    img3=pil_grid([img,img2],2)
+    img3.save('./imgs/test2.png')
 
     # print(img_diff_ex('./imgs/test2.png'), 'rmse')
 

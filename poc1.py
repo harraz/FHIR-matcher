@@ -128,11 +128,11 @@ for fileName in fileList:
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
     i+=1
-    if (i > 7): 
+    if (i > 15): 
         break
 
-    if NumberOfResourcesInBundle > 900:
-        continue
+    # if NumberOfResourcesInBundle > 0 and NumberOfResourcesInBundle <= 9999:
+    #     continue
     
     patientData= []
     encounterData= []
@@ -153,8 +153,8 @@ for fileName in fileList:
 
             resource_data = [onePatientID, \
                             onePatient.identifier[1].value, \
-                            onePatient.name[0].family + rand_str, \
-                            onePatient.name[0].given[0], \
+                            onePatient.name[0].family, \
+                            onePatient.name[0].given[0] + rand_str, \
                             onePatient.birthDate, \
                             onePatient.gender, \
                             onePatient.extension[0].extension[1].valueString, \
@@ -220,17 +220,17 @@ for fileName in fileList:
     patient_img=to_image(patient_lst, 'patient_mask.png')
     # patient_img.save('./imgs/patient_test' + onePatientID + '.png')
 
-    encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID)
+    encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID,2)
     # encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode'), onePatientID, 1)
     encounter_img=to_image(encounter_lst,  'encounter_mask.png')
     # encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
 
-    condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID)
+    condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID,3)
     # condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode'), onePatientID, 2)
     condition_img=to_image(condition_lst, 'condition_mask.png')
     # condition_img.save('./imgs/condition_test' + onePatientID + '.png')
 
-    pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/grid4_' + onePatientID + '.png')
+    pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/imgs_no_mask/duper23_' + onePatientID + '.png')
 
     patient_img.close()
     encounter_img.close()
