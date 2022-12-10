@@ -13,7 +13,7 @@ def to_image(stringlist, maskImage):
     mask = mask.resize(size=imsize)
 
     img = Image.new(size=imsize, mode='L')
-    img = Image.blend(mask, img,alpha=1)
+    img = Image.blend(mask, img,alpha=0.7)
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
 
@@ -39,10 +39,10 @@ def main():
     # diff=difference_ratio_by_parts('./imgs/dupe_5fd4e698-b40f-19ea-2204-4e9013576661.png', './imgs/grid3_5fd4e698-b40f-19ea-2204-4e9013576661.png')
     # print(diff)
 
-    img= to_image(['hello','there','its','me'],'encounter_mask.png')
+    img= to_image(['hello','there','its','me'], './encounter_mask.png')
     img.save('./imgs/test.png')
 
-    img2= to_image(['I','love','to see this','working'], 'condition_mask.png')
+    img2= to_image(['I','love','to see this','working'], './condition_mask.png')
     img2.save('./imgs/test1.png')
 
     img3=pil_grid([img,img2],2)

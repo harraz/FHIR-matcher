@@ -3,6 +3,7 @@ from libfunctions import *
 from sewar.full_ref import mse, rmse, psnr, uqi, ssim, ergas, scc, rase, sam, msssim, vifp
 from PIL import Image, ImageChops
 import os
+import numpy as np
 
 # s3BucketName1='synthea-output'
 # s3FolderName1= 'dupes' #'Bundles'
@@ -136,7 +137,7 @@ def sim_ratio_by_parts(im1_path, im2_path, similarity_method):
     else:
         diff_ratio = difference_ratio_by_parts(im1_path, im2_path)
 
-    diff_ratio = (p_similarity_measure ** 2 + enc_similarity_measure *0.5 + cond_similarity_measure *0.5)
+    diff_ratio = (p_similarity_measure * 2.0 + enc_similarity_measure * 0.5 + cond_similarity_measure * 0.5) / 3.0
 
     return diff_ratio
 
@@ -165,7 +166,7 @@ def match_sorted(img_location, method, reverse_order=False):
     # similarity_methods= ['rmse', 'uqi', 'sam', 'ergas']
 
     # assign directory
-    img_dir = './imgs/imgs_no_mask/'
+    img_dir = './imgs/'
 
     match_score={}
     # iterate over files image directory
@@ -184,8 +185,11 @@ def main():
     simmethod = 'ergas' #'scc' #'psnr' #'vifp' #'ssim' #'dffratio'  #'sam' 'rmse' 'uqi' 'ergas'  
 
     # record_to_find= './imgs/imgs_no_mask/grid77_5fd4e698-b40f-19ea-2204-4e9013576661.png'
-    record_to_find= './imgs/imgs_no_mask/dupe23_8d4596dc-614c-ed64-bc63-bfed74ea6e4d.png'
+    # record_to_find= './imgs/imgs_no_mask/dupe23_8d4596dc-614c-ed64-bc63-bfed74ea6e4d.png'
     # record_to_find = './imgs/imgs_no_mask/grid77_81a701f2-ce1b-1119-171c-d939509ba8e5.png'
+
+    record_to_find= './imgs/dupe5fd4e698-b40f-19ea-2204-4e9013576661.png'
+
 
     match_dict=match_sorted(record_to_find, simmethod, reverse_order=(simmethod=='vifp' or simmethod=='uqi' ))
 

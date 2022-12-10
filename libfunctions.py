@@ -2,6 +2,54 @@ import boto3
 from pyspark.sql.types import StructType, StructField, StringType, DateType
 import matplotlib.pyplot as plt
 
+from fhir.resources.bundle import Bundle
+from fhir.resources.patient import Patient
+# from fhir.resources.condition import Condition
+# from fhir.resources.observation import Observation
+# from fhir.resources.medicationrequest import MedicationRequest
+# from fhir.resources.procedure import Procedure
+# from fhir.resources.encounter import Encounter
+# from fhir.resources.claim import Claim
+# from fhir.resources.immunization import Immunization
+
+import pyspark
+from delta import *
+
+def make_spark_builder():
+
+    builder = pyspark.sql.SparkSession.builder.appName("p360POC") \
+        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+        .config("spark.hadoop.hive.metastore.warehouse.dir", "/work/delta") \
+        .config("spark.driver.memory", "8g") \
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+        .config("spark.jars.packages", 
+                    "io.delta:delta-core_2.12:1.1.0,"
+                    "org.apache.hadoop:hadoop-aws:3.2.2,"
+                    "com.amazonaws:aws-java-sdk-bundle:1.12.180") \
+        .config('spark.executor.instances', 8) \
+        .config("spark.executor.memory", "8g")
+        # .config("spark.sql.warehouse.dir", "/work/delta") \
+    return builder
+
+def ingestBundle(schema):
+    
+    """
+    This functions extracts all the resources in a given schema and passed back a list of resources found.
+    :return: list
+    :input: a schema of type json
+    """
+
+    oneBundle = Bundle.parse_obj(schema)
+
+    # Resources
+
+    resources = []
+    if oneBundle.entry is not None:
+        for entry in oneBundle.entry:
+            resources.append(entry.resource)
+    
+    return resources
+
 def list_s3_files_using_resource(bucketName, folderName):
     """
     This functions list files from s3 bucket using s3 resource object.
