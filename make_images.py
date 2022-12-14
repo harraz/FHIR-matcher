@@ -46,7 +46,7 @@ for fileName in fileList:
     print(fileName, onePatientID, i, NumberOfResourcesInBundle)
 
     i+=1
-    if (i > 9999): 
+    if (i > 16): 
         break
 
     # if NumberOfResourcesInBundle > 0 and NumberOfResourcesInBundle <= 9999:
@@ -132,17 +132,17 @@ for fileName in fileList:
     patient_lst = df2list(newPatient_df.select('PatientUID','NameFamily', \
         'NameGiven','Gender', 'city','state','postalCode'), onePatientID)
 
-    patient_img=to_image(patient_lst, 'patient_mask.png')
+    patient_img=to_image(patient_lst, get_rand_mask())
     # patient_img.save('./imgs/patient_test' + onePatientID + '.png')
 
     encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode').orderBy(['classCode']), onePatientID, random.randint(0, 5))
     # encounter_lst = df2list(newEncounter_df.select('PatientUID','classCode'), onePatientID, 1)
-    encounter_img=to_image(encounter_lst,  'encounter_mask.png')
+    encounter_img=to_image(encounter_lst,  get_rand_mask())
     # encounter_img.save('./imgs/encounter_test' + onePatientID + '.png')
 
     condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode').orderBy(['conditionCode']), onePatientID, random.randint(0, 3))
     # condition_lst = df2list(newCondition_df.select('PatientUID','conditionCode'), onePatientID, 2)
-    condition_img=to_image(condition_lst, 'condition_mask.png')
+    condition_img=to_image(condition_lst, get_rand_mask())
     # condition_img.save('./imgs/condition_test' + onePatientID + '.png')
 
     pil_grid([patient_img,encounter_img, condition_img], 3).save('./imgs/dupe' + onePatientID + '.png')

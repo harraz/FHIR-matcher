@@ -13,7 +13,7 @@ def to_image(stringlist, maskImage):
     mask = mask.resize(size=imsize)
 
     img = Image.new(size=imsize, mode='L')
-    img = Image.blend(mask, img,alpha=0.7)
+    img = Image.blend(mask, img,alpha=1)
     d = ImageDraw.Draw(img)
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
 
@@ -41,9 +41,11 @@ def main():
 
     img= to_image(['hello','there','its','me'], './encounter_mask.png')
     img.save('./imgs/test.png')
+    print(img.getbbox())
 
     img2= to_image(['I','love','to see this','working'], './condition_mask.png')
     img2.save('./imgs/test1.png')
+    print(img2.getbbox())
 
     img3=pil_grid([img,img2],2)
     img3.save('./imgs/test2.png')

@@ -126,7 +126,8 @@ def makeSchemas():
     return patientSchema, encounterSchema, conditionSchema
 
 # Plot utility  
-def plot_graphs(datain, ylabel, saveto='plt'):
+def plot_graphs(datain, ylabel, saveto='plt', xlim=10):
+
     from matplotlib.ticker import AutoMinorLocator, FixedLocator, FixedFormatter
 
     x=range(0,len(datain[0]))
@@ -154,7 +155,7 @@ def plot_graphs(datain, ylabel, saveto='plt'):
     ax.grid(axis="x", color="green", alpha=.3, linewidth=2, linestyle=":")
     ax.grid(axis="y", color="black", alpha=.5, linewidth=.5)
 
-    ax.set_xlim(-1, 10)
+    ax.set_xlim(0, xlim)
 
     plt.savefig(saveto+'.png')
 
@@ -173,3 +174,13 @@ def random_strings(strlength=3):
     
     # print result
     return str(res)
+
+def get_rand_mask():
+    
+    import random
+
+    masks=['./patient_mask.png','./encounter_mask.png', './condition_mask.png']
+    
+    rand_idx = random.randint(0, len(masks)-1)
+
+    return (masks[rand_idx])
