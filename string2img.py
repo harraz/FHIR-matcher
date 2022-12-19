@@ -5,21 +5,44 @@ from matcher import *
 
 def to_image(stringlist, maskImage):
 
+    """
+    This function takes in a list of strings and returns b/w image of size 200x200 pixles
+    The function can blend a second image 
+
+    stringList: List of strings to be converted to image
+    maskImage: PIL Image to be blended with final image
+    """
+
+    # fix image size
     imsize = (200, 200)
 
+    # use str function to map string list into a string with new lines
     s = "\n".join(map(str, stringlist))
 
+    # open the mask image in b/w mode and resize it
     mask = Image.open('./' + maskImage).convert(mode='L')
     mask = mask.resize(size=imsize)
 
+    # create a new b/w image of fixed size and blend with mask 
     img = Image.new(size=imsize, mode='L')
-    img = Image.blend(mask, img,alpha=1)
+    img = Image.blend(mask, img,alpha=1) # note that alpha is hardcoded to 1 here since it's no longer needed but can be parameterized if needed
     d = ImageDraw.Draw(img)
+
+    # paset the text from string onto the final image
     d.multiline_text((0, 0), text=s.lower(), fill='white', align='left')
+
+    # clean up
+    mask.close()
 
     return img
 
 def pil_grid(images, max_horiz=np.iinfo(int).max):
+
+    """
+    This function combines images into a grid of rows and columns based on the max_horiz argument
+    It was borrowed from this stackoverflow: https://stackoverflow.com/questions/30227466/combine-several-images-horizontally-with-python
+    It's magical!
+    """
     n_images = len(images)
     n_horiz = min(n_images, max_horiz)
     h_sizes, v_sizes = [0] * n_horiz, [0] * (n_images // n_horiz)

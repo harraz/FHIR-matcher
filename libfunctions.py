@@ -1,3 +1,4 @@
+
 import boto3
 from pyspark.sql.types import StructType, StructField, StringType, DateType
 import matplotlib.pyplot as plt
@@ -50,11 +51,16 @@ def ingestBundle(schema):
     
     return resources
 
-def list_s3_files_using_resource(bucketName, folderName):
+def list_s3_files_using_resource(bucketName, folderName, today_only = False):
     """
     This functions list files from s3 bucket using s3 resource object.
     :return: list
     """
+
+    from datetime import datetime
+
+    today = datetime.now().replace(tzinfo = None)
+    tdt = str(today.year) + '_' + str(today.month) + '_' + str(today.day)
     
     fileList= []
     s3_resource = boto3.resource("s3")
@@ -62,11 +68,28 @@ def list_s3_files_using_resource(bucketName, folderName):
     files = s3_bucket.objects.all()
     for file in files:
         if (file.key.startswith(folderName + '/') and file.key.endswith('.json')):
-            fileList.append(file.key)
+            flmd = str(file.last_modified.year) + '_' + str(file.last_modified.month) + '_' + str(file.last_modified.day)
+            if (tdt == flmd) and today_only:
+                fileList.append(file.key)
+                # print(file.last_modified)
+            else: 
+                fileList.append(file.key)
+
     return fileList
 
 def df2list(df, onePatientID, take='all'):
     
+    """
+    This function converts data frames to a list 
+
+    inputs: 
+            df - data frame containing attributes to be converted to a list
+            onePatientID - the patient ID to be used for filtering 
+            take - defaulted to take all records from the data frame but can be adjusted as needed
+    output:
+            lst - a list containing all the fields 
+
+    """
     if (take=='all'):
         lst = df.filter(df.PatientUID == onePatientID) \
         .distinct() \
@@ -77,9 +100,14 @@ def df2list(df, onePatientID, take='all'):
         .distinct() \
         .rdd.flatMap(lambda x : x[1:]) \
         .take(take)
+
     return lst
 
 def makeSchemas():
+
+    """
+    Define schemas for use by spark data frames later
+    """
 
     patientSchema = StructType([
         StructField('PatientUID', StringType(), True),
@@ -184,3 +212,13 @@ def get_rand_mask():
     rand_idx = random.randint(0, len(masks)-1)
 
     return (masks[rand_idx])
+
+def main():
+    s3BucketName = 'synthea-output'
+    s3FolderName =  'Bundles' # 'dupes'
+
+    # get a list of all the data files for looping 
+    fileList = list_s3_files_using_resource(s3BucketName, s3FolderName, use_today=True)
+
+if __name__ == "__main__":
+    main()

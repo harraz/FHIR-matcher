@@ -24,34 +24,59 @@ def difference_ratio_by_parts_rowsum(test_imag, im2_path):
 
     def calc_rowsumratio(test_img, ref_img):
 
-        img_diff = ImageChops.difference(test_img.crop(test_img.getbbox()), ref_img.crop(test_img.getbbox()))
-        img_diff_arr = np.asarray(np.array(img_diff), dtype=np.float32)
-        img_diff.save('img_diff.png')
+        """ Comparaes two images and returns a difference ratio
+        The function trys to find the difference between the test and reference image using PIL difference method
+        It uses the test image size to pick the same area and location in the reference image for difference calculation
+        """
 
+        crop_areea, ref_img_crop_area, test_img_crop_area = None, 0, 0
+
+        # calculate corp size
+        if (ref_img.getbbox() != None):
+            ref_img_crop_area = (ref_img.getbbox()[3] - ref_img.getbbox()[1]) * (ref_img.getbbox()[2] - ref_img.getbbox()[0])
+        if (test_img.getbbox() != None):
+            test_img_crop_area = (test_img.getbbox()[3] - test_img.getbbox()[1]) * (test_img.getbbox()[2] - test_img.getbbox()[0])
+
+
+        if (ref_img_crop_area >= test_img_crop_area):
+            crop_areea=test_img.getbbox()
+        else:
+            crop_areea=ref_img.getbbox()
+
+        # calculate the difference between the test image and the same area in the reference image
+        # img_diff = ImageChops.difference(test_img.crop(test_img.getbbox()), ref_img.crop(test_img.getbbox()))
+        img_diff = ImageChops.difference(test_img.crop(crop_areea), ref_img.crop(crop_areea))
+
+        # convert the difference to an np array
+        img_diff_arr = np.asarray(np.array(img_diff), dtype=np.float32)
+        # img_diff.save('img_diff.png')
+
+        # crop an area of the image equal to the test image
+        # convert to np array
         ref_img_crop = ref_img.crop(test_img.getbbox())
         ref_img_arr = np.asarray(np.array(ref_img_crop), dtype=np.float32)
-        ref_img_crop.save('ref_img_crop.png')
+        # ref_img_crop.save('ref_img_crop.png')
 
+        # convert all values 1 for simpler calculations
         img_diff_arr[img_diff_arr[:][:]==255]=1.0
         ref_img_arr[ref_img_arr[:][:]==255]=1.0
 
+        # sum all the values in the difference image
         a=np.sum(img_diff_arr) 
-        # img_diff_ratio=a
-        b=np.sum(ref_img_arr) 
+        
+        # summ all the values in the test reference image
+        b=np.sum(ref_img_arr)
 
         if (b==np.inf or b==0):
             b=0.1
 
-        img_diff_ratio = np.divide(a, b)
+        # calculate the diffence ratio in percent between the difference and the reference image
+        img_diff_ratio = np.divide(a, b) * 100
 
-        return (img_diff_ratio) *100
+        return img_diff_ratio
 
     p1, enc1, cond1= img_parts(test_imag)
     p2, enc2, cond2= img_parts(im2_path)
-
-        # /work/imgs/imgs_no_mask/duper23_4b39cfef-642f-ecd8-6742-5991b37aaa93.png
-    if (im2_path == './imgs/imgs_no_mask/duper23_4b39cfef-642f-ecd8-6742-5991b37aaa93.png'):
-        print('here')
 
     p_diff_ratio = calc_rowsumratio(p1, p2)
 
@@ -229,6 +254,10 @@ def sim_ratio_by_parts(im1_path, im2_path, similarity_method):
 
 def img_parts(im1_path, returnrray=False):
 
+    """ Given a path to an image, return even 200x200 parts of the image as individual images or np arrays
+    the function currently returns 3 parts and assumes the given image in 
+    """
+
     im1 = Image.open(im1_path)
 
     patient_crop = im1.crop((0,0,200,200))
@@ -247,17 +276,27 @@ def img_parts(im1_path, returnrray=False):
 
     return patient_crop, encounter_crop, condition_crop
 
-def match_sorted(test_img, ref_img_location, method, reverse_order=False):
+def match_sorted(test_img_path, ref_img_path, method, reverse_order=False):
 
-    # assign directory where the reference images are located
-    # ref_img_location = './imgs/imgs_no_mask/'
+    """Given a test image and a reference image, this function calls img_diff_ex() 
+    to calculate the similarity score between the test image and all the images in the refernece image location provided
+    
+        inputs:
+        test_img_path - path to a PNG image to test similarity
+        ref_img_path - path to reference PNG images
+        method - similariy method to be used
+        reverse_order - order of the match score, not reversed by default
+
+        output:
+        sorted dictionary of the match scores in prder defined by the reverse_order argument
+    """
 
     match_score={}
     # iterate over files in directory
-    for filename in os.listdir(ref_img_location):
+    for filename in os.listdir(ref_img_path):
         if filename.endswith ('png') :
             # for method in similarity_methods:
-            diff=img_diff_ex(test_img, ref_img_location + filename, method)
+            diff=img_diff_ex(test_img_path, ref_img_path + filename, method)
             # diff=sim_ratio_by_parts(img_location, img_dir + filename, method)
             # diff=img_diff(img_location, './imgs/' + filename)
             match_score[filename]=diff, method
@@ -271,13 +310,18 @@ def main():
     # record_to_find= './imgs/imgs_no_mask/dupe23_0b26b53a-d6b0-cf7b-5107-a6367c0b5d61.png' # 3 images found
     # record_to_find= './imgs/imgs_no_mask/dupe23_8d4clear596dc-614c-ed64-bc63-bfed74ea6e4d.png' # file does not exit is img location
     # record_to_find = './imgs/imgs_no_mask/grid77_81a701f2-ce1b-1119-171c-d939509ba8e5.png' # one dupe 
-    # record_to_find = './imgs/imgs_no_mask/dupe23_38970255-c586-8e0e-f328-cbacb314780a.png' # 3 images found
+    record_to_find = './imgs/dupe23_38970255-c586-8e0e-f328-cbacb314780a.png' # diffration found one more than ergas
     # record_to_find= './imgs/imgs_no_mask/duper23_73119f15-a35c-d7fc-9fd2-e54d8d049226.png' # 3 images found
-    record_to_find= './imgs/imgs_no_mask/dupe23_4b39cfef-642f-ecd8-6742-5991b37aaa93.png' # 3 images found
-    record_to_find= './imgs/imgs_no_mask/duper23_a9855237-bdde-707e-cf2e-6de590b79d1d.png' # 3 
+    # record_to_find= './imgs/imgs_no_mask/dupe23_4b39cfef-642f-ecd8-6742-5991b37aaa93.png' # 3 images found
+    # record_to_find= './imgs/imgs_no_mask/duper23_a9855237-bdde-707e-cf2e-6de590b79d1d.png' # 3 
+    # record_to_find ='./imgs/imgs_no_mask/duper23_8206939b-7317-e2f9-bfc8-34bf910f4eba.png' # 3 imags found
+    # record_to_find= './imgs/tst153_b13cfbdc-00ab-bc8d-e493-9ae4a27bd512.png' # 3 found
+    # record_to_find= './imgs/tst235_a9959419-fd3e-1ed5-cf4c-2887b6db1f39.png' # no duplicates
+    record_to_find ='./imgs/tst375_a9959419-fd3e-1ed5-cf4c-2887b6db1f39.png' # no duplicates
+    record_to_find = './imgs/tst375_f7039ec1-3281-7a16-7b71-ca667842669c.png'
     
-    ref_img_location = './imgs/imgs_no_mask/'
-    # ref_img_location = './imgs/'
+    # ref_img_location = './imgs/imgs_no_mask/'
+    ref_img_location = './imgs/'
 
     match_dict=match_sorted(record_to_find, ref_img_location, simmethod, reverse_order=(simmethod=='vifp' or simmethod=='uqi'))
     # match_dict=match_sorted(record_to_find, ref_img_location, 'ergas', reverse_order=(simmethod=='vifp' or simmethod=='uqi'))
@@ -291,22 +335,23 @@ def main():
     scores=[]
     lbls=[]
     # for j in range(0, len(match_dict)-1):
-    for j in range(0, 10):
+    for j in range(0, 20):
         diff_data.append(match_dict[j][1][0] - match_dict[j+1][1][0])
         scores.append(match_dict[j][1][0])
         lbls.append(match_dict[j][0][0:15]) # extraact first 16 charachters from the image file name
-    
-    # for ntry in match_dict:
-    #     if ntry[0]==record_to_find:
-    #         pass
 
-    # diff_data_srt = sorted(diff_data)
-    # print(np.abs(diff_data))
-
-    # plot_graphs(np.abs(diff_data), 'match score diff')
+    frst_drv = np.diff(scores,1)
+    scnd_drv = np.diff(scores,2)
     
+    top_matches = match_dict[:np.argmax(frst_drv)+1]
+
+    print(np.argmax(frst_drv), np.argmin(scnd_drv), list(zip(*top_matches))[0])
+
     display_name= os.path.basename(record_to_find)
+
     plot_graphs([scores, lbls], 'match distance - ' + (display_name[:16]), simmethod, xlim=10)
+    plot_graphs([frst_drv, lbls], 'match distance - ' + (display_name[:16]), simmethod + '_drv', xlim=10)
+    plot_graphs([scnd_drv, lbls], 'match distance - ' + (display_name[:16]), simmethod + '_2drv', xlim=10)
 
 if __name__ == "__main__":
     main()
