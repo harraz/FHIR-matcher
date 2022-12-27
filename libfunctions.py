@@ -23,12 +23,15 @@ def make_spark_builder():
         .config("spark.hadoop.hive.metastore.warehouse.dir", "/work/delta") \
         .config("spark.driver.memory", "8g") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .config("spark.jars.packages", 
-                    "io.delta:delta-core_2.12:1.1.0,"
-                    "org.apache.hadoop:hadoop-aws:3.2.2,"
-                    "com.amazonaws:aws-java-sdk-bundle:1.12.180") \
         .config('spark.executor.instances', 8) \
-        .config("spark.executor.memory", "8g")
+        .config("spark.executor.memory", "8g") \
+        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:2.10.2,org.apache.hadoop:hadoop-client:2.10.2") \
+        .config("spark.jars.excludes", "com.google.guava:guava")
+
+        # .config("spark.jars.packages", 
+        #             "io.delta:delta-core_2.12:1.1.0,"
+        #             "org.apache.hadoop:hadoop-aws:3.2.2,"
+        #             "com.amazonaws:aws-java-sdk-bundle:1.12.180") \
         # .config("spark.sql.warehouse.dir", "/work/delta") \
     return builder
 

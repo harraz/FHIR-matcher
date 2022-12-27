@@ -4,3 +4,4 @@ csv
 *.log
 __pycache__
 imgs
+tmp
