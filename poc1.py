@@ -150,19 +150,17 @@ for fileName in fileList:
             newCondition_df = spark.createDataFrame(condtitionData, conditionSchema)
             condition_df = condition_df.union(newCondition_df)
 
-patient_df.show(truncate=True)
-encounter_df.show(truncate=True)
-condition_df.show(truncate=True)
-
-
 # spark.sql("create database if not exists p360_pov")
 # spark.sql("use p360_pov")
 
 # .option("path", "/root/work/delta") \
 
-patient_df.write.format('delta').mode('overwrite').save('s3a://synthea-output/output/delta/patient')
-encounter_df.write.format('delta').mode('overwrite').save('s3a://synthea-output/output/delta/encounters')
-condition_df.write.format('delta').mode('overwrite').save('s3a://synthea-output/output/delta/conditions')
+patient_df.write.format('delta').mode('overwrite').partitionBy('state').save('s3a://synthea-output/output/delta/patient')
+patient_df.show(truncate=True)
+encounter_df.write.format('delta').mode('overwrite').partitionBy('classCode').save('s3a://synthea-output/output/delta/encounters')
+encounter_df.show(truncate=True)
+condition_df.write.format('delta').mode('overwrite').partitionBy('conditionCode').save('s3a://synthea-output/output/delta/conditions')
+condition_df.show(truncate=True)
 
 # patient_df.write \
 #     .format("delta") \

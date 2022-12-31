@@ -1,23 +1,23 @@
 import pyspark
-from pyspark.sql import SparkSession
+from delta import *
+from libfunctions import *
 
-WRITE_PATH = "s3a://synthea-output/output"
+s3 = boto3.resource('s3')
 
-spark = SparkSession \
-    .builder \
-    .appName("Test Writing to s3") \
-    .config("spark.pyspark.python", "python") \
-    .config("spark.sql.parquet.compression.codec", "gzip") \
-    .getOrCreate()
+builder = make_spark_builder()
 
-data =[("James ","","Smith","36636","M",3000),
-              ("Michael ","Rose","","40288","M",4000),
-              ("Robert ","","Williams","42114","M",4000),
-              ("Maria ","Anne","Jones","39192","F",4000),
-              ("Jen","Mary","Brown","","F",-1)]
-columns=["firstname","middlename","lastname","dob","gender","salary"]
+spark = configure_spark_with_delta_pip(builder, extra_packages=["org.apache.spark:spark-hadoop-cloud_2.12:3.3.0"]).getOrCreate()
+print(spark.sparkContext)
 
-df=spark.createDataFrame(data,columns)
+spark = configure_spark_with_delta_pip(builder).getOrCreate()
+
+sc =  spark.sparkContext
+sc._jsc.hadoopConfiguration().set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.profile.ProfileCredentialsProvider")
+sc._jsc.hadoopConfiguration().set("fs.s3a.fast.upload", "true")
+sc._jsc.hadoopConfiguration().set("fs.s3a.fast.upload.buffer", "bytebuffer")
+
+s3BucketName = 'synthea-output'
+s3FolderName =  'dupes' # 'dupes' Bundles
+
+df = spark.read.format("delta").load('s3a://' + s3BucketName + '/' + 'output/delta/encounters')
 df.show()
-
-df.write.parquet(WRITE_PATH, mode="overwrite")
